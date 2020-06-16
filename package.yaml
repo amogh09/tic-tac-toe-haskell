@@ -27,6 +27,8 @@ dependencies:
 - QuickCheck
 - directory
 - hspec-expectations
+- random
+- transformers
   
 library:
   source-dirs: src

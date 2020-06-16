@@ -5,4 +5,4 @@ import           Data.Point (Point)
 
 newtype Move = Move
   { unmove :: (Point, Cell)
-  }
+  } deriving Show

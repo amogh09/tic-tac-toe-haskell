@@ -4,24 +4,24 @@ import           Control.Exception       (finally)
 import           Data.Cell               (Cell (CellEmpty, CellO, CellX),
                                           cellChar)
 import           Data.Env                (mkEnv)
-import           Game                    (newGame, rungame)
+import           Game                    (GameRunner, newGame, rungame)
 import           System.Directory        (removeFile)
 import           System.IO               (SeekMode (AbsoluteSeek), hGetContents,
                                           hPutStr, hSeek, openTempFile)
 import           Test.Hspec              (Expectation, describe, hspec, it)
 import           Test.Hspec.Expectations (shouldReturn)
 
-runTest :: [String] -> IO [String]
-runTest ls = do
+runTest :: GameRunner IO -> [String] -> IO [String]
+runTest gr ls = do
   (rfp,rh) <- openTempFile "/tmp" "tic-tac-toe.in"
   (wfp,wh) <- openTempFile "/tmp" "tic-tac-toe.out"
-  go rh wh `finally` (removeFile rfp *> removeFile wfp)
+  go gr rh wh `finally` (removeFile rfp *> removeFile wfp)
   where
-    go rh wh = do
+    go gr rh wh = do
       hPutStr rh $ unlines ls
       hSeek rh AbsoluteSeek 0
       let env = mkEnv rh wh
-      either (error . show) pure =<< rungame env newGame
+      either (error . show) pure =<< rungame env (newGame gr)
       hSeek wh AbsoluteSeek 0
       lines <$> hGetContents wh
 

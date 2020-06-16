@@ -1,9 +1,10 @@
 module Data.Error (Error(..)) where
 
-import           Data.Point (Point)
+import           Data.Board    (BoardError)
+import           Data.Point    (Point)
+import           Data.Strategy (StrategyError)
 
-data Error = PointOutOfBoard Point
-           | PointOccupied Point
+data Error = GameBoardError BoardError
+           | GameStrategyError StrategyError
            | InvalidInput String
-           | InvalidGridSize (Int,Int)
            deriving (Show, Eq)

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 847ef9419ec2d8d468eee7f89098446abe456989742c2ba86292f930792a6633
+-- hash: 415250d9c4fbe3dd2bd6bd7d428f044780b40e2d7f398315f1a0ad7922c14563
 
 name:           tic-tac-toe
 version:        0.1.0.0
@@ -33,6 +33,8 @@ library
       Data.Error
       Data.Move
       Data.Point
+      Data.State
+      Data.Strategy
       Data.VectorUtil
       Game
       Lib
@@ -47,6 +49,8 @@ library
     , hspec
     , hspec-expectations
     , mtl
+    , random
+    , transformers
     , vector
   default-language: Haskell2010
 
@@ -64,7 +68,9 @@ executable tic-tac-toe-exe
     , hspec
     , hspec-expectations
     , mtl
+    , random
     , tic-tac-toe
+    , transformers
     , vector
   default-language: Haskell2010
 
@@ -88,6 +94,8 @@ test-suite tic-tac-toe-test
     , hspec
     , hspec-expectations
     , mtl
+    , random
     , tic-tac-toe
+    , transformers
     , vector
   default-language: Haskell2010

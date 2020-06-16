@@ -10,14 +10,15 @@ module Data.Board
   , extractCell
   , pointInBoard
   , boardFull
+  , emptyPoints
+  , BoardError (..)
   ) where
 
 import           Control.Applicative  (Alternative, empty, (<|>))
 import           Control.Monad.Except (MonadError, throwError)
 import           Data.Cell            (Cell (CellEmpty, CellO, CellX), cellChar)
-import           Data.Error           (Error (InvalidGridSize, PointOccupied, PointOutOfBoard))
 import           Data.List            (intersperse)
-import           Data.Move            (Move, unmove)
+import           Data.Move            (Move (Move), unmove)
 import           Data.Point           (Point (..))
 import qualified Data.Vector          as V
 import qualified Data.VectorUtil      as V
@@ -26,7 +27,12 @@ newtype Board = Board
   { unboard :: V.Vector (V.Vector Cell)
   } deriving (Eq)
 
-mkBoard :: MonadError Error m => V.Vector (V.Vector Cell) -> m Board
+data BoardError = InvalidGridSize (Int,Int)
+                | PointOccupied Point
+                | PointOutOfBoard Point
+                deriving (Show, Eq)
+
+mkBoard :: MonadError BoardError m => V.Vector (V.Vector Cell) -> m Board
 mkBoard grid | V.length grid == 3 && V.length (V.head grid) ==
                3 = pure $ Board grid
 mkBoard grid | V.length grid > 0 =
@@ -53,13 +59,13 @@ pointInBoard p =
 boardFull :: Board -> Bool
 boardFull = not . any id . fmap (V.elem CellEmpty) . unboard
 
-extractCell :: MonadError Error m => Point -> Board -> m Cell
+extractCell :: MonadError BoardError m => Point -> Board -> m Cell
 extractCell p _ | not (pointInBoard p) = throwError $ PointOutOfBoard p
 extractCell p b =
   let (x,y) = unpoint p
   in  pure $ unboard b V.! x V.! y
 
-updateBoard :: MonadError Error m => Board -> Move -> m Board
+updateBoard :: MonadError BoardError m => Board -> Move -> m Board
 updateBoard b mv = do
   let
     (p, c') = unmove mv
@@ -97,3 +103,12 @@ winCheck :: [Cell] -> Maybe Cell
 winCheck line | all (uncurry (==)) $ zip line (repeat CellX) = Just CellX
 winCheck line | all (uncurry (==)) $ zip line (repeat CellO) = Just CellO
 winCheck _    = Nothing
+
+points :: [Point]
+points = [ Point (i,j) | i <- [0..2], j <- [0..2] ]
+
+moves :: Board -> [Move]
+moves = fmap Move . zip points . concat . fmap V.toList . V.toList . unboard
+
+emptyPoints :: Board -> [Point]
+emptyPoints = fmap fst . filter ((==CellEmpty) . snd) . fmap unmove . moves
