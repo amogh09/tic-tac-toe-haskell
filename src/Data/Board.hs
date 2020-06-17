@@ -8,20 +8,37 @@ module Data.Board
   , updateBoard
   , winnerExists
   , extractCell
-  , pointInBoard
   , boardFull
   , emptyPoints
   , BoardError (..)
+  , pointOccupied
+  , mkPoint
+  , Point
+  , Move (Move)
+  , unmove
   ) where
 
 import           Control.Applicative  (Alternative, empty, (<|>))
 import           Control.Monad.Except (MonadError, throwError)
 import           Data.Cell            (Cell (CellEmpty, CellO, CellX), cellChar)
 import           Data.List            (intersperse)
-import           Data.Move            (Move (Move), unmove)
-import           Data.Point           (Point (..))
 import qualified Data.Vector          as V
 import qualified Data.VectorUtil      as V
+
+newtype Move = Move
+  { unmove :: (Point, Cell)
+  } deriving Show
+
+newtype Point = Point
+  { unpoint :: (Int, Int)
+  } deriving (Eq)
+
+instance Show Point where
+  show = show . unpoint
+
+mkPoint :: MonadError BoardError m => Int -> Int -> m Point
+mkPoint x y | x >= 0 && x < 3 && y >= 0 && y < 3 = pure $ Point (x,y)
+mkPoint x y = throwError $ PointOutOfBoard (x,y)
 
 newtype Board = Board
   { unboard :: V.Vector (V.Vector Cell)
@@ -29,7 +46,7 @@ newtype Board = Board
 
 data BoardError = InvalidGridSize (Int,Int)
                 | PointOccupied Point
-                | PointOutOfBoard Point
+                | PointOutOfBoard (Int,Int)
                 deriving (Show, Eq)
 
 mkBoard :: MonadError BoardError m => V.Vector (V.Vector Cell) -> m Board
@@ -49,28 +66,23 @@ instance Show Board where
     . fmap (intersperse ' ' . fmap cellChar . V.toList)
     . unboard
 
-pointInBoard :: Point -> Bool
-pointInBoard p =
-  let
-    (x,y) = unpoint p
-  in
-    0 <= x && x <= 2 && 0 <= y && y <= 2
+pointOccupied :: Point -> Board -> Bool
+pointOccupied p b = extractCell p b /= CellEmpty
 
 boardFull :: Board -> Bool
 boardFull = not . any id . fmap (V.elem CellEmpty) . unboard
 
-extractCell :: MonadError BoardError m => Point -> Board -> m Cell
-extractCell p _ | not (pointInBoard p) = throwError $ PointOutOfBoard p
+extractCell :: Point -> Board -> Cell
 extractCell p b =
   let (x,y) = unpoint p
-  in  pure $ unboard b V.! x V.! y
+  in  unboard b V.! x V.! y
 
 updateBoard :: MonadError BoardError m => Board -> Move -> m Board
 updateBoard b mv = do
   let
     (p, c') = unmove mv
     (x, y)  = unpoint p
-  c <- extractCell p b
+    c       = extractCell p b
   if c == CellEmpty
     then pure . Board $ unboard b V.// [(x, unboard b V.! x V.// [(y, c')])]
     else throwError $ PointOccupied p

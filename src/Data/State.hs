@@ -1,20 +1,22 @@
 module Data.State
   ( GameState, strategyState, mkGameState
-  , putStrategyState
+  , putStrategyState, ioState
   ) where
 
-import           Data.Strategy (StrategyState, mkStrategyState)
-import           System.Random (StdGen)
+import           System.Random (StdGen, getStdGen)
 
 data GameState = GameState
-  { _strategyState :: StrategyState
+  { _strategyState :: StdGen
   }
 
-strategyState :: GameState -> StrategyState
+strategyState :: GameState -> StdGen
 strategyState = _strategyState
 
 mkGameState :: StdGen -> GameState
-mkGameState g = GameState $ mkStrategyState g
+mkGameState g = GameState g
 
-putStrategyState :: StrategyState -> GameState -> GameState
+ioState :: IO GameState
+ioState = GameState <$> getStdGen
+
+putStrategyState :: StdGen -> GameState -> GameState
 putStrategyState ss gs = gs { _strategyState = ss }

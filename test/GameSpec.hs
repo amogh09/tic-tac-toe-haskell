@@ -3,25 +3,29 @@ module GameSpec (testAll) where
 import           Control.Exception       (finally)
 import           Data.Cell               (Cell (CellEmpty, CellO, CellX),
                                           cellChar)
-import           Data.Env                (mkEnv)
-import           Game                    (GameRunner, newGame, rungame)
+import           Data.Env                (UserEnv (..), mkEnv, mkIOEnv)
+import           Data.State              (mkGameState)
+import           Data.Strategy           (strategyEasyX)
+import           Game                    (playGame, playerPointGetter, rungame)
 import           System.Directory        (removeFile)
 import           System.IO               (SeekMode (AbsoluteSeek), hGetContents,
                                           hPutStr, hSeek, openTempFile)
+import           System.Random           (getStdGen)
 import           Test.Hspec              (Expectation, describe, hspec, it)
 import           Test.Hspec.Expectations (shouldReturn)
 
-runTest :: GameRunner IO -> [String] -> IO [String]
-runTest gr ls = do
+runTest :: [String] -> IO [String]
+runTest ls = do
   (rfp,rh) <- openTempFile "/tmp" "tic-tac-toe.in"
   (wfp,wh) <- openTempFile "/tmp" "tic-tac-toe.out"
-  go gr rh wh `finally` (removeFile rfp *> removeFile wfp)
+  go playerPointGetter rh wh `finally` (removeFile rfp *> removeFile wfp)
   where
-    go gr rh wh = do
+    go ppg rh wh = do
       hPutStr rh $ unlines ls
       hSeek rh AbsoluteSeek 0
-      let env = mkEnv rh wh
-      either (error . show) pure =<< rungame env (newGame gr)
+      let env = mkEnv (mkIOEnv rh wh) (UserEnv False strategyEasyX)
+      g <- getStdGen
+      _ <- either (error . show) pure =<< rungame env (mkGameState g) (playGame ppg ppg)
       hSeek wh AbsoluteSeek 0
       lines <$> hGetContents wh
 

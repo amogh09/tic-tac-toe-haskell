@@ -1,31 +1,56 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Data.Env
-  ( Env, stdenv, getReadH, getWriteH, mkEnv
-  , strategyEnv
+  ( EnvError
+  , Env
+  , getWriteH
+  , getReadH
+  , UserEnv (..)
+  , envStrategy
+  , mkEnv
+  , stdioEnv
+  , mkIOEnv
+  , isSinglePlayer
   ) where
 
 import           Control.Monad.Reader (MonadReader, ask)
-import           Data.Strategy        (StrategyConf)
+import           Data.Strategy        (Strategy)
 import           System.IO            (Handle, stdin, stdout)
 
 data Env = Env
-  { _readHandle  :: Handle
-  , _writeHandle :: Handle
-  , _strategyEnv :: StrategyConf
+  { _ioEnv   :: IOEnv
+  , _userEnv :: UserEnv
   }
 
-mkEnv :: Handle -> Handle -> StrategyConf -> Env
-mkEnv rh wh stEnv = Env rh wh stEnv
+data IOEnv = IOEnv
+  { _readHandle  :: Handle
+  , _writeHandle :: Handle
+  }
 
-stdenv :: StrategyConf -> Env
-stdenv stEnv = Env stdin stdout stEnv
+data UserEnv = UserEnv
+  { _isSinglePlayer :: Bool
+  , _strategy       :: Strategy
+  }
+
+data EnvError = NoStrategyForMultiplayer deriving (Show,Eq)
+
+mkEnv :: IOEnv -> UserEnv -> Env
+mkEnv io ue = Env io ue
+
+mkIOEnv :: Handle -> Handle -> IOEnv
+mkIOEnv rh wh = IOEnv rh wh
+
+stdioEnv :: IOEnv
+stdioEnv = IOEnv stdin stdout
 
 getReadH :: MonadReader Env m => m Handle
-getReadH = _readHandle <$> ask
+getReadH = _readHandle <$> _ioEnv <$> ask
 
 getWriteH :: MonadReader Env m => m Handle
-getWriteH = _writeHandle <$> ask
+getWriteH = _writeHandle <$> _ioEnv <$> ask
 
-strategyEnv :: Env -> StrategyConf
-strategyEnv = _strategyEnv
+envStrategy :: Env -> Strategy
+envStrategy = _strategy . _userEnv where
+
+isSinglePlayer :: Env -> Bool
+isSinglePlayer = _isSinglePlayer . _userEnv

@@ -4,15 +4,13 @@ module Data.BoardSpec (testAll) where
 
 import           CommonSpec          (it')
 import           Control.Monad       (foldM)
-import           Data.Board          (Board, boardFull, emptyBoard, extractCell,
-                                      mkBoard, unboard, updateBoard,
-                                      winnerExists)
+import           Data.Board          (Board, BoardError (..), Move (Move),
+                                      Point, boardFull, emptyBoard, extractCell,
+                                      mkBoard, mkPoint, unboard, unmove,
+                                      updateBoard, winnerExists)
 import           Data.Cell           (Cell (CellEmpty, CellO, CellX))
 import           Data.Either         (isRight)
-import           Data.Error          (Error (InvalidGridSize, PointOccupied, PointOutOfBoard))
 import           Data.List           (nub)
-import           Data.Move           (Move (Move), unmove)
-import           Data.PointSpec      (pointInBoard, pointOutOfBoard)
 import qualified Data.Vector         as V
 import qualified Data.VectorUtil     as V
 import qualified Data.VectorUtilSpec as V
@@ -39,12 +37,11 @@ cellXO = elements [CellX, CellO]
 boardArbitrary :: Gen Cell -> Gen Board
 boardArbitrary c = mkBoard' <$> V.gridArbitrary (3,3) c
 
-prop_updateBoard_out_of_board_move :: Property
-prop_updateBoard_out_of_board_move =
-  forAll (boardArbitrary cellArbitrary)  $ \b ->
-  forAll cellArbitrary   $ \c ->
-  forAll pointOutOfBoard $ \p ->
-  (updateBoard b (Move (p,c)) :: Either Error Board) == Left (PointOutOfBoard p)
+pointInBoard :: Gen Point
+pointInBoard =
+      either (error . show) id
+  <$> uncurry mkPoint
+  <$> ((,) <$> choose (0,2) <*> choose (0,2))
 
 prop_updateBoard_point_occupied_err :: Property
 prop_updateBoard_point_occupied_err =
@@ -63,7 +60,7 @@ prop_updateBoard_valid_move =
   let
     m = Move (p,c)
   in
-    (updateBoard emptyBoard m >>= extractCell p) == Right c
+    (extractCell p <$> updateBoard emptyBoard m) == Right c
 
 genHorizontalWinBoard :: Cell -> Gen Board
 genHorizontalWinBoard c =
@@ -176,7 +173,6 @@ testAll = hspec $ do
     it' "has a col size of 3" prop_emptyBoard_col_size
     it' "has all empty cells" prop_emptyBoard_all_empty
   describe "updateBoard" $ do
-    it' "throws error if move is out of board" prop_updateBoard_out_of_board_move
     it' "throws error if move point occupied" prop_updateBoard_point_occupied_err
     it' "adds cell to an unoccupied point" prop_updateBoard_valid_move
   describe "winnerExists" $ do
