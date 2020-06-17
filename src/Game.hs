@@ -132,8 +132,5 @@ launchGame = do
     env  = mkEnv stdioEnv ue
     getX = playerPointGetter
     getO = if isSinglePlayer env then computerPointGetter else playerPointGetter
-  res <- rungame
-    env
-    (mkGameState g)
-    (playGame getX getO)
+  res <- rungame env (mkGameState g) (playGame getX getO)
   either print (\_ -> pure ()) res

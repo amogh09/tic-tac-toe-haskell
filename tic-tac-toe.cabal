@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f8a44730f558b5be0b6a39976b2db8991b69bb12763729d335e538d9992723c1
+-- hash: 1466ff188d852397f8be2cb56b4495592f7c3105288a29e685c1228a6464eeb6
 
 name:           tic-tac-toe
 version:        0.1.0.0
@@ -35,7 +35,6 @@ library
       Data.Strategy
       Data.VectorUtil
       Game
-      Lib
       Types
   other-modules:
       Paths_tic_tac_toe
