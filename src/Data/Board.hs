@@ -50,10 +50,9 @@ data BoardError = InvalidGridSize (Int,Int)
                 deriving (Show, Eq)
 
 mkBoard :: MonadError BoardError m => V.Vector (V.Vector Cell) -> m Board
-mkBoard grid | V.length grid == 3 && V.length (V.head grid) ==
-               3 = pure $ Board grid
+mkBoard grid | V.length grid == 3 && V.length (V.head grid) == 3 = pure $ Board grid
 mkBoard grid | V.length grid > 0 =
-               throwError . InvalidGridSize $ (V.length grid, V.length (V.head grid))
+  throwError . InvalidGridSize $ (V.length grid, V.length (V.head grid))
 mkBoard _ = throwError . InvalidGridSize $ (0,0)
 
 emptyBoard :: Board
