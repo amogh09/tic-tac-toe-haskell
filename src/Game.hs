@@ -59,14 +59,22 @@ cellEmptyIfBoardFull b = if B.boardFull b then Just CellEmpty else Nothing
 
 type PointGetter m = (B.Board -> GameXO m B.Point)
 
+playAgain :: (MonadIO m) => PointGetter m -> PointGetter m -> GameXO m ()
+playAgain xg og = do
+  gamePutStr "Do you want to play again? [Y/N]: "
+  ans <- gameGetLine
+  if (toLower <$> ans) `elem` ["y", "yes"]
+    then playGame xg og
+    else gamePutStrLn "Bye!"
+
+-- |Starts the game and manages it. Collects input from the two users
+-- turn-by-turn and checks the state of the game at each board update.
 playGame
   :: MonadIO m
-  => PointGetter m
-  -> PointGetter m
+  => PointGetter m  -- Point getter for X
+  -> PointGetter m  -- Point getter for O
   -> GameXO m ()
-playGame xg og = do
-  printBoard B.emptyBoard >>= playGame' xg og True
-  playAgain xg og
+playGame xg og = printBoard B.emptyBoard >>= playGame' xg og True >> playAgain xg og
 
 playGame'
   :: MonadIO m
@@ -77,7 +85,7 @@ playGame'
   -> GameXO m ()
 playGame' xg og xt b = do
   gamePutStrLn $ (if xt then "X's " else "O's ") <> "turn"
-  p  <- if xt then xg b else og b
+  p <- if xt then xg b else og b
   if (B.pointOccupied p b)
     then do
       gamePutStrLn $ "Point " <> show p <> " is already occupied. Try again."
@@ -92,29 +100,20 @@ playGame' xg og xt b = do
 
 playerPointGetter :: MonadIO m => B.Board -> GameXO m B.Point
 playerPointGetter b = act `catchError` \e -> printError e *> playerPointGetter b
-  where
-    act = gamePutStr "Enter point: " *> gameGetLine >>= readPoint
-
-computerPointGetter :: Monad m => B.Board -> GameXO m B.Point
-computerPointGetter b = do
-  g   <- strategyState <$> get
-  str <- asks envStrategy
-  (p,g') <- first GameStrategyError $ nextPoint str g b
-  modify $ putStrategyState g'
-  pure p
+  where act = gamePutStr "Enter point: " *> gameGetLine >>= readPoint
 
 printError :: (MonadIO m) => Error -> GameXO m ()
 printError (GameBoardError (B.PointOccupied p)) =
   gamePutStrLn $ "Error: Cell " <> show p <> " is already occupied."
 printError e = gamePutStrLn $ "Error: " <> show e
 
-playAgain :: (MonadIO m) => PointGetter m -> PointGetter m -> GameXO m ()
-playAgain xg og = do
-  gamePutStr "Do you want to play again? [Y/N]: "
-  ans <- gameGetLine
-  if (toLower <$> ans) `elem` ["y", "yes"]
-    then playGame xg og
-    else gamePutStrLn "Bye!"
+computerPointGetter :: Monad m => B.Board -> GameXO m B.Point
+computerPointGetter b = do
+  g      <- strategyState <$> get
+  str    <- asks envStrategy
+  (p,g') <- first GameStrategyError $ nextPoint str g b
+  modify $ putStrategyState g'
+  pure p
 
 getUserEnv :: IO UserEnv
 getUserEnv = do
