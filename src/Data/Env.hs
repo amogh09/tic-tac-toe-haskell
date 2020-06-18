@@ -3,28 +3,16 @@
 module Data.Env
   ( EnvError
   , Env
-  , getWriteH
-  , getReadH
   , UserEnv (..)
   , envStrategy
   , mkEnv
-  , stdioEnv
-  , mkIOEnv
   , isSinglePlayer
   ) where
 
-import           Control.Monad.Reader (MonadReader, ask)
-import           Data.Strategy        (Strategy)
-import           System.IO            (Handle, stdin, stdout)
+import           Data.Strategy (Strategy)
 
 data Env = Env
-  { _ioEnv   :: IOEnv
-  , _userEnv :: UserEnv
-  }
-
-data IOEnv = IOEnv
-  { _readHandle  :: Handle
-  , _writeHandle :: Handle
+  { _userEnv :: UserEnv
   }
 
 data UserEnv = UserEnv
@@ -34,20 +22,8 @@ data UserEnv = UserEnv
 
 data EnvError = NoStrategyForMultiplayer deriving (Show,Eq)
 
-mkEnv :: IOEnv -> UserEnv -> Env
-mkEnv io ue = Env io ue
-
-mkIOEnv :: Handle -> Handle -> IOEnv
-mkIOEnv rh wh = IOEnv rh wh
-
-stdioEnv :: IOEnv
-stdioEnv = IOEnv stdin stdout
-
-getReadH :: MonadReader Env m => m Handle
-getReadH = _readHandle <$> _ioEnv <$> ask
-
-getWriteH :: MonadReader Env m => m Handle
-getWriteH = _writeHandle <$> _ioEnv <$> ask
+mkEnv :: UserEnv -> Env
+mkEnv ue = Env ue
 
 envStrategy :: Env -> Strategy
 envStrategy = _strategy . _userEnv where

@@ -10,56 +10,40 @@ module Game
   , playerPointGetter
   ) where
 
-import           Control.Applicative    ((<|>))
-import           Control.Monad.Except   (catchError, throwError)
-import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Monad.Reader   (asks)
-import           Control.Monad.State    (get, modify)
-import           Data.Bifunctor         (first)
-import qualified Data.Board             as B
-import           Data.Cell              (Cell (CellEmpty, CellO, CellX),
-                                         cellChar)
-import           Data.Char              (digitToInt, isDigit, toLower)
-import           Data.Env               (UserEnv (..), envStrategy, getReadH,
-                                         getWriteH, isSinglePlayer, mkEnv,
-                                         stdioEnv)
-import           Data.Error             (Error (..))
-import           Data.State             (mkGameState, putStrategyState,
-                                         strategyState)
-import           Data.Strategy          (nextPoint, strategyEasyX)
-import           System.IO              (BufferMode (NoBuffering), hGetLine,
-                                         hPutStr, hPutStrLn, hSetBuffering,
-                                         stdout)
-import           System.Random          (getStdGen)
-import           Types                  (GameXO, rungame)
-
-printBoard :: MonadIO m => B.Board -> GameXO m B.Board
-printBoard b = gamePutStrLn (show b) *> pure b
-
-gamePutStr :: (MonadIO m) => String -> GameXO m ()
-gamePutStr xs = getWriteH >>= liftIO . flip hPutStr xs
-
-gamePutStrLn :: (MonadIO s) => String -> GameXO s ()
-gamePutStrLn xs = getWriteH >>= liftIO . flip hPutStrLn xs
-
-gameGetLine :: MonadIO m => GameXO m String
-gameGetLine = getReadH >>= liftIO . hGetLine
+import           Control.Applicative  ((<|>))
+import           Control.Monad.Except (catchError, throwError)
+import           Control.Monad.Reader (asks)
+import           Control.Monad.State  (get, modify)
+import           Data.Bifunctor       (first)
+import qualified Data.Board           as B
+import           Data.Cell            (Cell (CellEmpty, CellO, CellX), cellChar)
+import           Data.Char            (digitToInt, isDigit, toLower)
+import           Data.Env             (UserEnv (..), envStrategy,
+                                       isSinglePlayer, mkEnv)
+import           Data.Error           (Error (..))
+import           Data.State           (mkGameState, putStrategyState,
+                                       strategyState)
+import           Data.Strategy        (nextPoint, strategyEasyX)
+import           System.IO            (BufferMode (NoBuffering), hSetBuffering,
+                                       stdout)
+import           System.Random        (getStdGen)
+import           Types                (AppIO, GameXO, PointGetter, gameGetLine,
+                                       gamePutStr, gamePutStrLn, printBoard,
+                                       rungame)
 
 readPoint :: Monad m => String -> GameXO m B.Point
 readPoint [x,y] | isDigit x && isDigit y =
                   first GameBoardError $ B.mkPoint (digitToInt x) (digitToInt y)
 readPoint xs = throwError $ InvalidInput xs
 
-declareResult :: MonadIO m => Cell -> GameXO m ()
+declareResult :: AppIO m => Cell -> GameXO m ()
 declareResult CellEmpty = gamePutStrLn "It's a draw"
 declareResult c         = gamePutStrLn $ "Winner is " <> [cellChar c]
 
 cellEmptyIfBoardFull :: B.Board -> Maybe Cell
 cellEmptyIfBoardFull b = if B.boardFull b then Just CellEmpty else Nothing
 
-type PointGetter m = (B.Board -> GameXO m B.Point)
-
-playAgain :: (MonadIO m) => PointGetter m -> PointGetter m -> GameXO m ()
+playAgain :: (AppIO m) => PointGetter m -> PointGetter m -> GameXO m ()
 playAgain xg og = do
   gamePutStr "Do you want to play again? [Y/N]: "
   ans <- gameGetLine
@@ -70,14 +54,14 @@ playAgain xg og = do
 -- |Starts the game and manages it. Collects input from the two users
 -- turn-by-turn and checks the state of the game at each board update.
 playGame
-  :: MonadIO m
+  :: AppIO m
   => PointGetter m  -- Point getter for X
   -> PointGetter m  -- Point getter for O
   -> GameXO m ()
 playGame xg og = printBoard B.emptyBoard >>= playGame' xg og True >> playAgain xg og
 
 playGame'
-  :: MonadIO m
+  :: AppIO m
   => PointGetter m
   -> PointGetter m
   -> Bool
@@ -98,11 +82,11 @@ playGame' xg og xt b = do
         declareResult
         (B.winnerExists b' <|> cellEmptyIfBoardFull b')
 
-playerPointGetter :: MonadIO m => B.Board -> GameXO m B.Point
+playerPointGetter :: AppIO m => B.Board -> GameXO m B.Point
 playerPointGetter b = act `catchError` \e -> printError e *> playerPointGetter b
   where act = gamePutStr "Enter point: " *> gameGetLine >>= readPoint
 
-printError :: (MonadIO m) => Error -> GameXO m ()
+printError :: (AppIO m) => Error -> GameXO m ()
 printError (GameBoardError (B.PointOccupied p)) =
   gamePutStrLn $ "Error: Cell " <> show p <> " is already occupied."
 printError e = gamePutStrLn $ "Error: " <> show e
@@ -129,7 +113,7 @@ launchGame = do
   ue  <- getUserEnv
   g   <- getStdGen
   let
-    env  = mkEnv stdioEnv ue
+    env  = mkEnv ue
     getX = playerPointGetter
     getO = if isSinglePlayer env then computerPointGetter else playerPointGetter
   res <- rungame env (mkGameState g) (playGame getX getO)
